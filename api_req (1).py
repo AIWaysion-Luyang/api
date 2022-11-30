@@ -35,7 +35,6 @@ import datetime
 #send to API
 import mysql.connector
 import requests
-#from datetime import datetime
 
 # In[5]:
 
@@ -139,7 +138,7 @@ class VideoInputThread(threading.Thread):
                 for cnt in contours0:
                     #cv2.drawContours(frame, cnt, -1, (0,255,0), 3, 8)
                     area = cv2.contourArea(cnt)
-                    areaTH = 300
+                    areaTH = 1000
                     if area > areaTH:          
                         M = cv2.moments(cnt)
                         cx = int(M['m10']/M['m00'])
@@ -257,12 +256,12 @@ frame = None
 count1 = 0
 count2 = 0
 count3 = 0
-vtx11 = [80,250]
-vtx12 = [290,442]
-vtx21 = [295,250]
-vtx22 = [598,400]
-vtx31 = [170,127]
-vtx32 = [270,183]
+vtx11 = [100,187]
+vtx12 = [299,442]
+vtx21 = [431,180]
+vtx22 = [598,309]
+vtx31 = [244,120]
+vtx32 = [313,183]
 
 # API Requests
 
@@ -280,7 +279,7 @@ def toEnv(date, hum, temp, rdCon, speed, device_id):
     data = {"device_id": device_id, "date": date, "hum": hum, "temp": temp, "rdCon": rdCon, "speed": speed}
     myResponse = requests.post(url , data=data)
     if(myResponse.ok):
-        print('Success to api Env')
+        print('Success to api')
     else:
         curr = datetime.strptime(date, '%Y-%m-%d-%H_%M_%S')
         database = dbConnect()
@@ -298,7 +297,7 @@ def toCount(upstream, downstream, device_id):
     data = {"device_id": device_id, "upstream": upstream, "downstream": downstream}
     myResponse = requests.post(url , data=data)
     print('Success to api Count')
-    
+
 
 def toImage(path, device_id):
     url = "https://api.staging.aiwaysion.com/v1/remote/device/image"
@@ -485,7 +484,7 @@ fs2 = FrameSegment(s, port= 1246, addr="54.219.161.172")
 if __name__ == '__main__':
     videoInputThread = VideoInputThread()
     videoInputThread.start()
-    #RF=joblib.load('RF_model2.sav')
+    #RF=joblib.load('rf.model')
     #print(RF)
     time_send_imgs1 = time.time()
     time_send_imgs2 = time.time()
@@ -558,7 +557,7 @@ if __name__ == '__main__':
                 h = 'NA'
             else:
                 y_pred = RF.predict([[temp,h,m,d]])
-            udpstr = udpstr + str(now) + ',' + str(temp) + ',' + str(h) + ',' + str(y_pred) + ','
+            udpstr = udpstr + str(now) + ',' + str(temp) + ',' + str(h) + ','  + str(y_pred) + ','
             #print(udpstr)
             (boxes, scores, classes, num) = sess.run([detection_boxes, detection_scores, detection_classes, num_detections],feed_dict={image_tensor: frame_expanded})
             
@@ -580,15 +579,11 @@ if __name__ == '__main__':
             #    print('send!')
             #    fs.udp_frame(pure_frame)
             #    time.sleep(0.5)
-
-
-
-
-    # API Requests
-            device_id = "7faaa498-ad44-496b-98f0-75e86421cc5c" 
-            speed = "45" 
-            toEnv(now, h, temp, y_pred, speed, device_id)      
             
+    # API Requests
+            device_id = "232" 
+            speed = "45" 
+            toEnv(now, h, temp, y_pred, speed, device_id)          
            
     # Bounding Box on frame                       
                             
@@ -603,7 +598,7 @@ if __name__ == '__main__':
                 category_index,
                 use_normalized_coordinates=True,
                 line_thickness=3,
-                min_score_thresh=0.3)
+                min_score_thresh=0.5)
             '''
 
                 #cv2.putText(frame,"FPS: {0:.2f}".format(frame_rate_calc),(30,50),font,1,(255,255,0),2,cv2.LINE_AA)
@@ -611,17 +606,16 @@ if __name__ == '__main__':
             #print("time1", time.time())
             #print("time2", time_send_imgs)
             s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-            s.sendto(udpstr.encode(), ("54.219.161.172", 2235))
+            s.sendto(udpstr.encode(), ("54.219.161.172", 2245))
             if time.time() - time_send_imgs1 > 30:
-                
-                pts_up = np.array([[210,230], [370,405],[495,323], [300,210]],np.int32)
+                pts_down = np.array([[215,135], [570,330],[600,263], [280,120]],np.int32)
                 #pts = pts.reshape((-1,1,2))
-                cv2.polylines(frame, [pts_up], True, (0,255,0),thickness=3)
-                cv2.putText(frame, 'UpStream', (430,410),font, 0.7, (0,255,0), 2, cv2.LINE_AA)
-
-                pts_down = np.array([[200,230],[80,250], [135,460], [360,405]],np.int32)
                 cv2.polylines(frame, [pts_down], True, (0,0,255),thickness=3)
-                cv2.putText(frame, 'DownStream', (70,210),font, 0.7, (0,0,255), 2, cv2.LINE_AA)
+                cv2.putText(frame, 'DownStream', (420,170),font, 0.7, (0,0,255), 2, cv2.LINE_AA)
+
+                pts_up = np.array([[210,140],[100,200], [325,460], [565,335]],np.int32)
+                cv2.polylines(frame, [pts_up], True, (0,255,0),thickness=3)
+                cv2.putText(frame, 'UpStream', (120,400),font, 0.7, (0,255,0), 2, cv2.LINE_AA)
 
                 #cv2.rectangle(frame, (vtx11[0], vtx11[1]), (vtx12[0], vtx12[1]), (0,255,0), thickness=2)
                 #cv2.rectangle(frame, (vtx21[0], vtx21[1]), (vtx22[0], vtx22[1]), (255,0,0), thickness=2)
@@ -631,7 +625,7 @@ if __name__ == '__main__':
                 #cv2.putText(frame,'Count2:'+str(count2),(vtx21[0], vtx21[1]-10),font,0.7,(255,0,0),2,cv2.LINE_AA)
                 #cv2.putText(frame,'Count3:'+str(count3),(vtx31[0], vtx31[1]-10),font,0.7,(0,0,255),2,cv2.LINE_AA)
 
-                count_result = "Upstream:" + str(count2+count3) + "," + "Downstream" + str(count1)
+                count_result = "Upstream:" + str(count1) + "," + "Downstream:" + str(count2+count3)
 
                 print(count_result)
 
@@ -658,18 +652,19 @@ if __name__ == '__main__':
             
             if time.time() - time_send_imgs2 > 900:
 
-                count_result = "Upstream:" + str(count2+count3) + "," + "Downstream" + str(count1)
-                upstream = str(count2+count3)
-                downstream = str(count1)
-
+                count_result = "Upstream:" + str(count1) + "," + "Downstream:" + str(count2+count3)
+                upstream = str(count1)
+                downstream = str(count2+count3)
+                
                 print(count_result)
-       
-       # API COUNT
-                device_id = "7faaa498-ad44-496b-98f0-75e86421cc5c"
+
+    # API Count
+                device_id = "2814f8dc-4506-4b49-892a-948e8d6da29f"
                 toCount(upstream, downstream, device_id)
+                print(count_result)
 
                 s.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, 2)
-                s.sendto(count_result.encode(), ("54.219.161.172", 2236))
+                s.sendto(count_result.encode(), ("54.219.161.172", 2246))
 
                 count1 = 0
                 count2 = 0
